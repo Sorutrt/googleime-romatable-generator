@@ -133,6 +133,7 @@ func TestGenerateRomajiSequences(t *testing.T) {
 		{Physical: "f", Value: "o"},
 		{Physical: "h", Value: "k"},
 		{Physical: "o", Value: "y"},
+		{Physical: "u", Value: "w"},
 		{Physical: "z", Value: "yぇ"},
 		{Physical: "j", Value: "t"},
 	})
@@ -156,6 +157,8 @@ func TestGenerateRomajiSequences(t *testing.T) {
 		"hof": "きょ",
 		"hz":  "きぇ",
 		"jz":  "ちぇ",
+		"us":  "うぃ",
+		"ua":  "うぇ",
 	} {
 		if got[input] != want {
 			t.Fatalf("generated[%q] = %q, want %q", input, got[input], want)
@@ -314,6 +317,7 @@ func TestRunAutoGeneratesRomajiSequences(t *testing.T) {
 		"f o",
 		"h k",
 		"o y",
+		"u w",
 		"z yぇ",
 		"j t",
 	}, "\n")+"\n"), 0o644); err != nil {
@@ -338,6 +342,8 @@ func TestRunAutoGeneratesRomajiSequences(t *testing.T) {
 		"hd\tか\t\n",
 		"hod\tきゃ\t\n",
 		"jz\tちぇ\t\n",
+		"us\tうぃ\t\n",
+		"ua\tうぇ\t\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("stdout missing %q in %q", want, got)

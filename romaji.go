@@ -61,6 +61,8 @@ var defaultRomajiKanaTable = []romajiKanaEntry{
 	{Romaji: "re", Kana: "れ"},
 	{Romaji: "ro", Kana: "ろ"},
 	{Romaji: "wa", Kana: "わ"},
+	{Romaji: "wi", Kana: "うぃ"},
+	{Romaji: "we", Kana: "うぇ"},
 	{Romaji: "wo", Kana: "を"},
 	{Romaji: "nn", Kana: "ん"},
 	{Romaji: "ga", Kana: "が"},
