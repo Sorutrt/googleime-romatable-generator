@@ -95,6 +95,61 @@ func TestLoadRelativeLayerSequences(t *testing.T) {
 	}
 }
 
+func TestGenerateRomajiSequences(t *testing.T) {
+	sequences, err := GenerateRomajiSequences([]MappingEntry{
+		{Physical: "d", Value: "a"},
+		{Physical: "s", Value: "i"},
+		{Physical: "e", Value: "u"},
+		{Physical: "a", Value: "e"},
+		{Physical: "f", Value: "o"},
+		{Physical: "h", Value: "k"},
+		{Physical: "o", Value: "y"},
+	})
+	if err != nil {
+		t.Fatalf("GenerateRomajiSequences() error = %v", err)
+	}
+
+	got := make(map[string]string, len(sequences))
+	for _, entry := range sequences {
+		got[entry.Input] = entry.Output
+	}
+
+	for input, want := range map[string]string{
+		"hd":  "か",
+		"hs":  "き",
+		"he":  "く",
+		"ha":  "け",
+		"hf":  "こ",
+		"hod": "きゃ",
+		"hoe": "きゅ",
+		"hof": "きょ",
+	} {
+		if got[input] != want {
+			t.Fatalf("generated[%q] = %q, want %q", input, got[input], want)
+		}
+	}
+}
+
+func TestAppendMissingSequencesKeepsExisting(t *testing.T) {
+	got := appendMissingSequences(
+		[]SequenceEntry{{Input: "hd", Output: "custom"}},
+		[]SequenceEntry{
+			{Input: "hd", Output: "か"},
+			{Input: "hs", Output: "き"},
+		},
+	)
+
+	if len(got) != 2 {
+		t.Fatalf("len(got) = %d, want 2", len(got))
+	}
+	if got[0] != (SequenceEntry{Input: "hd", Output: "custom"}) {
+		t.Fatalf("got[0] = %#v, want existing custom sequence", got[0])
+	}
+	if got[1] != (SequenceEntry{Input: "hs", Output: "き"}) {
+		t.Fatalf("got[1] = %#v, want generated hs -> き", got[1])
+	}
+}
+
 func TestCompileRejectsUnknownLayer(t *testing.T) {
 	_, err := Compile(
 		[]MappingEntry{{Physical: "q", Value: "*x", IsLayer: true, Layer: "x"}},
@@ -207,6 +262,46 @@ func TestRunLoadsLayerFilesAutomatically(t *testing.T) {
 		"q\t\tq\n",
 		"j\th\t\n",
 		"qh\t←\t\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("stdout missing %q in %q", want, got)
+		}
+	}
+}
+
+func TestRunAutoGeneratesRomajiSequences(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "qwerty_to_other")
+
+	if err := os.WriteFile(inputPath, []byte(strings.Join([]string{
+		"d a",
+		"s i",
+		"e u",
+		"a e",
+		"f o",
+		"h k",
+		"o y",
+	}, "\n")+"\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile(input): %v", err)
+	}
+
+	var stderr bytes.Buffer
+	var stdout bytes.Buffer
+	code := run([]string{
+		"-input", inputPath,
+		"-format", "google",
+	}, &stderr, &stdout)
+
+	if code != 0 {
+		t.Fatalf("run() code = %d, stderr = %q", code, stderr.String())
+	}
+
+	got := stdout.String()
+	for _, want := range []string{
+		"h\tk\t\n",
+		"d\ta\t\n",
+		"hd\tか\t\n",
+		"hod\tきゃ\t\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("stdout missing %q in %q", want, got)

@@ -50,6 +50,13 @@ func run(args []string, stderr io.Writer, stdout io.Writer) int {
 		sequences = append(sequences, manualSequences...)
 	}
 
+	autoSequences, err := GenerateRomajiSequences(mappings)
+	if err != nil {
+		fmt.Fprintf(stderr, "generate romaji sequences: %v\n", err)
+		return 1
+	}
+	sequences = appendMissingSequences(sequences, autoSequences)
+
 	compiled, err := Compile(mappings, sequences)
 	if err != nil {
 		fmt.Fprintf(stderr, "compile rules: %v\n", err)
