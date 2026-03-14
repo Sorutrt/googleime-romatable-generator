@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -28,12 +29,26 @@ func ParseSequenceFile(path string) ([]SequenceEntry, error) {
 	return ParseSequences(file)
 }
 
+func ParseRelativeSequenceFile(path string) ([]RelativeSequenceEntry, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	return ParseRelativeSequences(file)
+}
+
 func ParseMappings(r io.Reader) ([]MappingEntry, error) {
 	return parseMappings(r)
 }
 
 func ParseSequences(r io.Reader) ([]SequenceEntry, error) {
 	return parseSequences(r)
+}
+
+func ParseRelativeSequences(r io.Reader) ([]RelativeSequenceEntry, error) {
+	return parseRelativeSequences(r)
 }
 
 func parseMappings(scannerSource io.Reader) ([]MappingEntry, error) {
@@ -75,8 +90,25 @@ func parseMappings(scannerSource io.Reader) ([]MappingEntry, error) {
 }
 
 func parseSequences(scannerSource io.Reader) ([]SequenceEntry, error) {
+	relativeEntries, err := parseRelativeSequences(scannerSource)
+	if err != nil {
+		return nil, err
+	}
+
+	entries := make([]SequenceEntry, 0, len(relativeEntries))
+	for _, entry := range relativeEntries {
+		entries = append(entries, SequenceEntry{
+			Input:  entry.Input,
+			Output: entry.Output,
+		})
+	}
+
+	return entries, nil
+}
+
+func parseRelativeSequences(scannerSource io.Reader) ([]RelativeSequenceEntry, error) {
 	scanner := bufio.NewScanner(scannerSource)
-	var entries []SequenceEntry
+	var entries []RelativeSequenceEntry
 
 	for lineNo := 1; scanner.Scan(); lineNo++ {
 		line := strings.TrimSpace(scanner.Text())
@@ -89,7 +121,7 @@ func parseSequences(scannerSource io.Reader) ([]SequenceEntry, error) {
 			return nil, fmt.Errorf("line %d: expected 2 fields, got %d", lineNo, len(fields))
 		}
 
-		entries = append(entries, SequenceEntry{
+		entries = append(entries, RelativeSequenceEntry{
 			Input:  fields[0],
 			Output: fields[1],
 		})
@@ -100,4 +132,44 @@ func parseSequences(scannerSource io.Reader) ([]SequenceEntry, error) {
 	}
 
 	return entries, nil
+}
+
+func LoadRelativeLayerSequences(mappingPath string, mappings []MappingEntry) ([]SequenceEntry, error) {
+	baseDir := filepath.Dir(mappingPath)
+	loadedLayers := make(map[string][]RelativeSequenceEntry)
+	var sequences []SequenceEntry
+
+	for _, entry := range mappings {
+		if !entry.IsLayer {
+			continue
+		}
+
+		relativeEntries, ok := loadedLayers[entry.Layer]
+		if !ok {
+			path := filepath.Join(baseDir, "layer_"+entry.Layer)
+			if _, err := os.Stat(path); err != nil {
+				if os.IsNotExist(err) {
+					loadedLayers[entry.Layer] = nil
+					continue
+				}
+				return nil, err
+			}
+
+			parsedEntries, err := ParseRelativeSequenceFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("parse %s: %w", path, err)
+			}
+			relativeEntries = parsedEntries
+			loadedLayers[entry.Layer] = relativeEntries
+		}
+
+		for _, relativeEntry := range relativeEntries {
+			sequences = append(sequences, SequenceEntry{
+				Input:  entry.Physical + relativeEntry.Input,
+				Output: relativeEntry.Output,
+			})
+		}
+	}
+
+	return sequences, nil
 }

@@ -58,6 +58,43 @@ func TestCompileGeneratesRows(t *testing.T) {
 	}
 }
 
+func TestLoadRelativeLayerSequences(t *testing.T) {
+	dir := t.TempDir()
+	mappingPath := filepath.Join(dir, "qwerty_to_other")
+	layerPath := filepath.Join(dir, "layer_q")
+
+	if err := os.WriteFile(mappingPath, []byte("q *q\nj h\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile(mapping): %v", err)
+	}
+
+	if err := os.WriteFile(layerPath, []byte("h ←\nj ↓\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile(layer): %v", err)
+	}
+
+	mappings, err := ParseMappingFile(mappingPath)
+	if err != nil {
+		t.Fatalf("ParseMappingFile() error = %v", err)
+	}
+
+	got, err := LoadRelativeLayerSequences(mappingPath, mappings)
+	if err != nil {
+		t.Fatalf("LoadRelativeLayerSequences() error = %v", err)
+	}
+
+	want := []SequenceEntry{
+		{Input: "qh", Output: "←"},
+		{Input: "qj", Output: "↓"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("len(got) = %d, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got[%d] = %#v, want %#v", i, got[i], want[i])
+		}
+	}
+}
+
 func TestCompileRejectsUnknownLayer(t *testing.T) {
 	_, err := Compile(
 		[]MappingEntry{{Physical: "q", Value: "*x", IsLayer: true, Layer: "x"}},
@@ -139,6 +176,41 @@ func TestRunWritesGoogleToFile(t *testing.T) {
 
 	if stdout.Len() != 0 {
 		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+}
+
+func TestRunLoadsLayerFilesAutomatically(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "qwerty_to_other")
+	layerPath := filepath.Join(dir, "layer_q")
+
+	if err := os.WriteFile(inputPath, []byte("q *q\nj h\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile(input): %v", err)
+	}
+	if err := os.WriteFile(layerPath, []byte("h ←\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile(layer): %v", err)
+	}
+
+	var stderr bytes.Buffer
+	var stdout bytes.Buffer
+	code := run([]string{
+		"-input", inputPath,
+		"-format", "google",
+	}, &stderr, &stdout)
+
+	if code != 0 {
+		t.Fatalf("run() code = %d, stderr = %q", code, stderr.String())
+	}
+
+	got := stdout.String()
+	for _, want := range []string{
+		"q\t\tq\n",
+		"j\th\t\n",
+		"qh\t←\t\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("stdout missing %q in %q", want, got)
+		}
 	}
 }
 

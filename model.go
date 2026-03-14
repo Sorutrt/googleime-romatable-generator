@@ -12,6 +12,11 @@ type SequenceEntry struct {
 	Output string
 }
 
+type RelativeSequenceEntry struct {
+	Input  string
+	Output string
+}
+
 type SingleRule struct {
 	Input  string
 	Output string

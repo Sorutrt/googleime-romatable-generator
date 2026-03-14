@@ -35,13 +35,19 @@ func run(args []string, stderr io.Writer, stdout io.Writer) int {
 		return 1
 	}
 
-	var sequences []SequenceEntry
+	sequences, err := LoadRelativeLayerSequences(*inputPath, mappings)
+	if err != nil {
+		fmt.Fprintf(stderr, "load layer sequences: %v\n", err)
+		return 1
+	}
+
 	if *sequencesPath != "" {
-		sequences, err = ParseSequenceFile(*sequencesPath)
+		manualSequences, err := ParseSequenceFile(*sequencesPath)
 		if err != nil {
 			fmt.Fprintf(stderr, "parse sequences: %v\n", err)
 			return 1
 		}
+		sequences = append(sequences, manualSequences...)
 	}
 
 	compiled, err := Compile(mappings, sequences)
