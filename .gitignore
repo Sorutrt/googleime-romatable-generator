@@ -1,0 +1,14 @@
+.gocache/
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Local binary name
+googleime-romatable-generator
+googleime-romatable-generator.exe
