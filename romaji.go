@@ -12,6 +12,11 @@ type romajiKanaEntry struct {
 	Kana   string
 }
 
+type consonantFragmentKanaRow struct {
+	Consonant string
+	Kanas     map[string]string
+}
+
 var defaultRomajiKanaTable = []romajiKanaEntry{
 	{Romaji: "ka", Kana: "か"},
 	{Romaji: "ki", Kana: "き"},
@@ -133,10 +138,38 @@ var defaultRomajiKanaTable = []romajiKanaEntry{
 
 var requiredRomajiLetters = buildRequiredRomajiLetters(defaultRomajiKanaTable)
 
+var smallYFragments = []string{"yぁ", "yぃ", "yぅ", "yぇ", "yぉ"}
+
+var defaultConsonantFragmentKanaTable = []consonantFragmentKanaRow{
+	{Consonant: "k", Kanas: map[string]string{"yぁ": "きゃ", "yぃ": "きぃ", "yぅ": "きゅ", "yぇ": "きぇ", "yぉ": "きょ"}},
+	{Consonant: "s", Kanas: map[string]string{"yぁ": "しゃ", "yぃ": "しぃ", "yぅ": "しゅ", "yぇ": "しぇ", "yぉ": "しょ"}},
+	{Consonant: "t", Kanas: map[string]string{"yぁ": "ちゃ", "yぃ": "ちぃ", "yぅ": "ちゅ", "yぇ": "ちぇ", "yぉ": "ちょ"}},
+	{Consonant: "n", Kanas: map[string]string{"yぁ": "にゃ", "yぃ": "にぃ", "yぅ": "にゅ", "yぇ": "にぇ", "yぉ": "にょ"}},
+	{Consonant: "h", Kanas: map[string]string{"yぁ": "ひゃ", "yぃ": "ひぃ", "yぅ": "ひゅ", "yぇ": "ひぇ", "yぉ": "ひょ"}},
+	{Consonant: "m", Kanas: map[string]string{"yぁ": "みゃ", "yぃ": "みぃ", "yぅ": "みゅ", "yぇ": "みぇ", "yぉ": "みょ"}},
+	{Consonant: "r", Kanas: map[string]string{"yぁ": "りゃ", "yぃ": "りぃ", "yぅ": "りゅ", "yぇ": "りぇ", "yぉ": "りょ"}},
+	{Consonant: "g", Kanas: map[string]string{"yぁ": "ぎゃ", "yぃ": "ぎぃ", "yぅ": "ぎゅ", "yぇ": "ぎぇ", "yぉ": "ぎょ"}},
+	{Consonant: "z", Kanas: map[string]string{"yぁ": "じゃ", "yぃ": "じぃ", "yぅ": "じゅ", "yぇ": "じぇ", "yぉ": "じょ"}},
+	{Consonant: "d", Kanas: map[string]string{"yぁ": "ぢゃ", "yぃ": "ぢぃ", "yぅ": "ぢゅ", "yぇ": "ぢぇ", "yぉ": "ぢょ"}},
+	{Consonant: "b", Kanas: map[string]string{"yぁ": "びゃ", "yぃ": "びぃ", "yぅ": "びゅ", "yぇ": "びぇ", "yぉ": "びょ"}},
+	{Consonant: "p", Kanas: map[string]string{"yぁ": "ぴゃ", "yぃ": "ぴぃ", "yぅ": "ぴゅ", "yぇ": "ぴぇ", "yぉ": "ぴょ"}},
+}
+
 func GenerateRomajiSequences(mappings []MappingEntry) ([]SequenceEntry, error) {
 	romajiToPhysical := make(map[string]string)
+	fragmentToPhysical := make(map[string]string)
 	for _, entry := range mappings {
-		if entry.IsLayer || !singleRomajiPattern.MatchString(entry.Value) {
+		if entry.IsLayer {
+			continue
+		}
+		if isSmallYFragment(entry.Value) {
+			if physical, exists := fragmentToPhysical[entry.Value]; exists {
+				return nil, fmt.Errorf("duplicate fragment key %q for %q and %q", entry.Value, physical, entry.Physical)
+			}
+			fragmentToPhysical[entry.Value] = entry.Physical
+			continue
+		}
+		if !singleRomajiPattern.MatchString(entry.Value) {
 			continue
 		}
 		if _, needed := requiredRomajiLetters[entry.Value]; !needed {
@@ -157,14 +190,29 @@ func GenerateRomajiSequences(mappings []MappingEntry) ([]SequenceEntry, error) {
 			continue
 		}
 
-		if _, exists := seenInputs[physicalInput]; exists {
-			continue
-		}
-		seenInputs[physicalInput] = struct{}{}
-		sequences = append(sequences, SequenceEntry{
+		sequences, seenInputs = appendUniqueSequence(sequences, seenInputs, SequenceEntry{
 			Input:  physicalInput,
 			Output: entry.Kana,
 		})
+	}
+
+	for _, row := range defaultConsonantFragmentKanaTable {
+		consonantPhysical, ok := romajiToPhysical[row.Consonant]
+		if !ok {
+			continue
+		}
+
+		for fragment, kana := range row.Kanas {
+			fragmentPhysical, ok := fragmentToPhysical[fragment]
+			if !ok {
+				continue
+			}
+
+			sequences, seenInputs = appendUniqueSequence(sequences, seenInputs, SequenceEntry{
+				Input:  consonantPhysical + fragmentPhysical,
+				Output: kana,
+			})
+		}
 	}
 
 	return sequences, nil
@@ -196,6 +244,23 @@ func buildRequiredRomajiLetters(entries []romajiKanaEntry) map[string]struct{} {
 		}
 	}
 	return letters
+}
+
+func appendUniqueSequence(sequences []SequenceEntry, seenInputs map[string]struct{}, entry SequenceEntry) ([]SequenceEntry, map[string]struct{}) {
+	if _, exists := seenInputs[entry.Input]; exists {
+		return sequences, seenInputs
+	}
+	seenInputs[entry.Input] = struct{}{}
+	return append(sequences, entry), seenInputs
+}
+
+func isSmallYFragment(value string) bool {
+	for _, fragment := range smallYFragments {
+		if value == fragment {
+			return true
+		}
+	}
+	return false
 }
 
 func translateRomajiToPhysical(romaji string, romajiToPhysical map[string]string) (string, bool) {
