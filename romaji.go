@@ -142,6 +142,13 @@ var requiredRomajiLetters = buildRequiredRomajiLetters(defaultRomajiKanaTable)
 
 var smallYFragments = []string{"yぁ", "yぃ", "yぅ", "yぇ", "yぉ"}
 
+var sokuonConsonants = map[string]struct{}{
+	"k": {},
+	"s": {},
+	"t": {},
+	"p": {},
+}
+
 var defaultConsonantFragmentKanaTable = []consonantFragmentKanaRow{
 	{Consonant: "k", Kanas: map[string]string{"yぁ": "きゃ", "yぃ": "きぃ", "yぅ": "きゅ", "yぇ": "きぇ", "yぉ": "きょ"}},
 	{Consonant: "s", Kanas: map[string]string{"yぁ": "しゃ", "yぃ": "しぃ", "yぅ": "しゅ", "yぇ": "しぇ", "yぉ": "しょ"}},
@@ -196,6 +203,7 @@ func GenerateRomajiSequences(mappings []MappingEntry) ([]SequenceEntry, error) {
 			Input:  physicalInput,
 			Output: entry.Kana,
 		})
+		sequences, seenInputs = appendSokuonSequence(sequences, seenInputs, entry.Romaji, physicalInput, entry.Kana, romajiToPhysical)
 	}
 
 	for _, row := range defaultConsonantFragmentKanaTable {
@@ -214,6 +222,7 @@ func GenerateRomajiSequences(mappings []MappingEntry) ([]SequenceEntry, error) {
 				Input:  consonantPhysical + fragmentPhysical,
 				Output: kana,
 			})
+			sequences, seenInputs = appendSokuonSequenceForLeadingConsonant(sequences, seenInputs, row.Consonant, consonantPhysical+fragmentPhysical, kana, romajiToPhysical)
 		}
 	}
 
@@ -254,6 +263,31 @@ func appendUniqueSequence(sequences []SequenceEntry, seenInputs map[string]struc
 	}
 	seenInputs[entry.Input] = struct{}{}
 	return append(sequences, entry), seenInputs
+}
+
+func appendSokuonSequence(sequences []SequenceEntry, seenInputs map[string]struct{}, romaji string, physicalInput string, kana string, romajiToPhysical map[string]string) ([]SequenceEntry, map[string]struct{}) {
+	if len(romaji) < 2 {
+		return sequences, seenInputs
+	}
+
+	return appendSokuonSequenceForLeadingConsonant(sequences, seenInputs, string(romaji[0]), physicalInput, kana, romajiToPhysical)
+}
+
+func appendSokuonSequenceForLeadingConsonant(sequences []SequenceEntry, seenInputs map[string]struct{}, consonant string, physicalInput string, kana string, romajiToPhysical map[string]string) ([]SequenceEntry, map[string]struct{}) {
+	first := consonant
+	if _, ok := sokuonConsonants[first]; !ok {
+		return sequences, seenInputs
+	}
+
+	firstPhysical, ok := romajiToPhysical[first]
+	if !ok {
+		return sequences, seenInputs
+	}
+
+	return appendUniqueSequence(sequences, seenInputs, SequenceEntry{
+		Input:  firstPhysical + physicalInput,
+		Output: "っ" + kana,
+	})
 }
 
 func isSmallYFragment(value string) bool {
