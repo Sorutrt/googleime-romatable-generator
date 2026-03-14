@@ -58,6 +58,35 @@ func TestCompileGeneratesRows(t *testing.T) {
 	}
 }
 
+func TestCompileConvertsVowelSinglesToKana(t *testing.T) {
+	compiled, err := Compile(
+		[]MappingEntry{
+			{Physical: "d", Value: "a"},
+			{Physical: "s", Value: "i"},
+			{Physical: "e", Value: "u"},
+			{Physical: "a", Value: "e"},
+			{Physical: "f", Value: "o"},
+		},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+
+	gotGoogle := EmitGoogle(compiled)
+	for _, want := range []string{
+		"d\tあ\t\n",
+		"s\tい\t\n",
+		"e\tう\t\n",
+		"a\tえ\t\n",
+		"f\tお\t\n",
+	} {
+		if !strings.Contains(gotGoogle, want) {
+			t.Fatalf("EmitGoogle() missing %q in %q", want, gotGoogle)
+		}
+	}
+}
+
 func TestLoadRelativeLayerSequences(t *testing.T) {
 	dir := t.TempDir()
 	mappingPath := filepath.Join(dir, "qwerty_to_other")
@@ -299,7 +328,7 @@ func TestRunAutoGeneratesRomajiSequences(t *testing.T) {
 	got := stdout.String()
 	for _, want := range []string{
 		"h\tk\t\n",
-		"d\ta\t\n",
+		"d\tあ\t\n",
 		"hd\tか\t\n",
 		"hod\tきゃ\t\n",
 	} {

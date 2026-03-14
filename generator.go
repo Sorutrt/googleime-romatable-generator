@@ -2,6 +2,14 @@ package main
 
 import "fmt"
 
+var vowelKanaByRomaji = map[string]string{
+	"a": "あ",
+	"i": "い",
+	"u": "う",
+	"e": "え",
+	"o": "お",
+}
+
 func Compile(mappings []MappingEntry, sequences []SequenceEntry) (Compiled, error) {
 	knownPhysical := make(map[string]struct{}, len(mappings))
 	seenPhysical := make(map[string]struct{}, len(mappings))
@@ -43,14 +51,15 @@ func Compile(mappings []MappingEntry, sequences []SequenceEntry) (Compiled, erro
 			return Compiled{}, err
 		}
 
+		output := resolveSingleOutput(entry.Value)
 		rule := SingleRule{
 			Input:  entry.Physical,
-			Output: entry.Value,
+			Output: output,
 		}
 		compiled.SingleRules = append(compiled.SingleRules, rule)
 		compiled.GoogleRows = append(compiled.GoogleRows, GoogleRow{
 			Input:  entry.Physical,
-			Output: entry.Value,
+			Output: output,
 		})
 	}
 
@@ -77,6 +86,13 @@ func Compile(mappings []MappingEntry, sequences []SequenceEntry) (Compiled, erro
 	}
 
 	return compiled, nil
+}
+
+func resolveSingleOutput(value string) string {
+	if kana, ok := vowelKanaByRomaji[value]; ok {
+		return kana
+	}
+	return value
 }
 
 func reserveInput(seen map[string]struct{}, input string) error {
