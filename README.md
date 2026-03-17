@@ -22,6 +22,7 @@ go run . -input preferences\qwerty_to_other -format google -output romatable.tsv
 
 通常の `key -> output` だけでなく、`*q` のような記法でキーをレイヤーとして扱えます。
 また、`key -> a` や `key -> k` のような単打ローマ字定義から、標準的なローマ字かなシーケンスを自動で補完します。
+代表的な別綴りとして、`ltu/xtu`、`la/xa` 系の小書きかな、`she/je/che`、`va` 系、`qa` 系、`tsa` 系、`thi/dha` 系、`fya` 系、`wha` 系も補完対象です。`ん` は `nn` に加えて `n'` と `xn` に対応し、曖昧性を避けるため単独の `n` は自動生成しません。
 
 たとえば:
 

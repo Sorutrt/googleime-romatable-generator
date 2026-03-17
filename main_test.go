@@ -181,6 +181,57 @@ func TestGenerateRomajiSequences(t *testing.T) {
 	}
 }
 
+func TestGenerateRomajiSequencesSupportsExtendedVariants(t *testing.T) {
+	sequences, err := GenerateRomajiSequences(identityRomajiMappings())
+	if err != nil {
+		t.Fatalf("GenerateRomajiSequences() error = %v", err)
+	}
+
+	got := make(map[string]string, len(sequences))
+	for _, entry := range sequences {
+		got[entry.Input] = entry.Output
+	}
+
+	for input, want := range map[string]string{
+		"n'":  "ん",
+		"xn":  "ん",
+		"ltu": "っ",
+		"xtu": "っ",
+		"la":  "ぁ",
+		"xo":  "ぉ",
+		"lya": "ゃ",
+		"xyo": "ょ",
+		"lwa": "ゎ",
+		"xwa": "ゎ",
+		"she": "しぇ",
+		"je":  "じぇ",
+		"che": "ちぇ",
+		"va":  "ゔぁ",
+		"vyo": "ゔょ",
+		"qa":  "くぁ",
+		"qwu": "くぅ",
+		"qyo": "くょ",
+		"tsa": "つぁ",
+		"tsi": "つぃ",
+		"tse": "つぇ",
+		"tso": "つぉ",
+		"thi": "てぃ",
+		"dhu": "でゅ",
+		"fya": "ふゃ",
+		"fwo": "ふぉ",
+		"wha": "うぁ",
+		"who": "うぉ",
+	} {
+		if got[input] != want {
+			t.Fatalf("generated[%q] = %q, want %q", input, got[input], want)
+		}
+	}
+
+	if _, exists := got["n"]; exists {
+		t.Fatalf("generated bare n -> %q, want no bare n mapping", got["n"])
+	}
+}
+
 func TestAppendMissingSequencesKeepsExisting(t *testing.T) {
 	got := appendMissingSequences(
 		[]SequenceEntry{{Input: "hd", Output: "custom"}},
@@ -389,4 +440,16 @@ func writeTempFile(t *testing.T, name, contents string) string {
 		t.Fatalf("os.WriteFile(%s): %v", name, err)
 	}
 	return path
+}
+
+func identityRomajiMappings() []MappingEntry {
+	mappings := make([]MappingEntry, 0, 26)
+	for r := 'a'; r <= 'z'; r++ {
+		value := string(r)
+		mappings = append(mappings, MappingEntry{
+			Physical: value,
+			Value:    value,
+		})
+	}
+	return mappings
 }
