@@ -147,6 +147,10 @@ var sokuonConsonants = map[string]struct{}{
 	"s": {},
 	"t": {},
 	"p": {},
+	"g": {},
+	"z": {},
+	"d": {},
+	"b": {},
 }
 
 var defaultConsonantFragmentKanaTable = []consonantFragmentKanaRow{
