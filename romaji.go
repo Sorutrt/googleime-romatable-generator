@@ -225,6 +225,8 @@ var sokuonConsonants = map[string]struct{}{
 	"k": {},
 	"s": {},
 	"t": {},
+	"h": {},
+	"f": {},
 	"p": {},
 	"g": {},
 	"z": {},
